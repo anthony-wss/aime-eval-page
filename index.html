@@ -162,7 +162,7 @@
       document.getElementById('result').innerHTML = `
         <div><strong>Question:</strong> <pre>${r.question || ''}</pre></div>
         <div><strong>Generated Response:</strong> <pre style="max-height:300px;overflow:auto;">${r.generated_response || ''}</pre></div>
-        <div><strong>Generated Answer:</strong> ${r.generated_answer || ''}</div>
+        <div><strong>Generated Answer:</strong> ${r.generated_answers || r.generated_answer || ''}</div>
         <div><strong>Gold Answer:</strong> ${r.gold_answer || ''}</div>
         <div><strong>Correctness:</strong> <span class="${r.is_correct ? 'correct' : 'incorrect'}">${r.is_correct ? 'Correct' : 'Incorrect'}</span></div>
       `;
