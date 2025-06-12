@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Model Output Viewer</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 0; 
+      padding: 0; 
+      background: #f5f5f5;
+    }
+    #header { 
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      right: 0; 
+      background: #fff; 
+      padding: 1em; 
+      z-index: 100; 
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1em;
+      align-items: center;
+    }
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+    }
+    select, button {
+      padding: 0.5em;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #fff;
+    }
+    button {
+      cursor: pointer;
+      background: #2196F3;
+      color: white;
+      border: none;
+      padding: 0.5em 1em;
+    }
+    button:hover {
+      background: #1976D2;
+    }
+    #content { 
+      margin-top: 120px; 
+      padding: 1em; 
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    #result { 
+      background: white;
+      padding: 1.5em;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .correct { 
+      color: #fff; 
+      background: #4caf50; 
+      padding: 0.2em 0.5em; 
+      border-radius: 4px; 
+    }
+    .incorrect { 
+      color: #fff; 
+      background: #f44336; 
+      padding: 0.2em 0.5em; 
+      border-radius: 4px; 
+    }
+    pre {
+      background: #f8f8f8;
+      padding: 1em;
+      border-radius: 4px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+    .navigation {
+      display: flex;
+      gap: 1em;
+      margin-top: 1em;
+      justify-content: center;
+    }
+    .navigation button {
+      min-width: 100px;
+    }
+    @media (max-width: 600px) {
+      #header { 
+        padding: 0.5em; 
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .control-group {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      #content { 
+        padding: 0.5em; 
+        margin-top: 200px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <div class="control-group">
+      <label for="dataset">Dataset:</label>
+      <select id="dataset">
+        <option value="test2024">Test2024</option>
+        <option value="test2025-I">Test2025-I</option>
+        <option value="test2025-II">Test2025-II</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label for="model">Model:</label>
+      <select id="model">
+        <option value="google/gemma-3-27b-it">gemma-3-27b-it</option>
+        <option value="Allen172/gemma-text-1800">ckpt-1800</option>
+        <option value="Allen172/gemma-text-4400">ckpt-4400</option>
+        <option value="Allen172/gemma-text-7700">ckpt-7700</option>
+      </select>
+    </div>
+    <button id="loadBtn">Load Results</button>
+  </div>
+  <div id="content">
+    <div class="navigation">
+      <button id="prevBtn" disabled>Previous</button>
+      <span id="counter">0/0</span>
+      <button id="nextBtn" disabled>Next</button>
+    </div>
+    <div id="result">No data loaded.</div>
+  </div>
+  <script>
+    let results = [];
+    let currentIndex = 0;
+
+    async function loadJSONL(path) {
+      try {
+        const response = await fetch(path);
+        if (!response.ok) throw new Error('File not found or cannot be loaded.');
+        const text = await response.text();
+        results = text.trim().split('\n').map(line => JSON.parse(line));
+        currentIndex = 0;
+        updateNavigation();
+        showResult();
+      } catch (err) {
+        document.getElementById('result').innerHTML = `<span style='color:red;'>${err.message}</span>`;
+        results = [];
+        updateNavigation();
+      }
+    }
+
+    function showResult() {
+      if (results.length === 0) {
+        document.getElementById('result').innerText = 'No data loaded.';
+        return;
+      }
+      const r = results[currentIndex];
+      document.getElementById('result').innerHTML = `
+        <div><strong>Question:</strong> <pre>${r.question || ''}</pre></div>
+        <div><strong>Generated Response:</strong> <pre style="max-height:300px;overflow:auto;">${r.generated_response || ''}</pre></div>
+        <div><strong>Generated Answer:</strong> ${r.generated_answer || ''}</div>
+        <div><strong>Gold Answer:</strong> ${r.gold_answer || ''}</div>
+        <div><strong>Correctness:</strong> <span class="${r.is_correct ? 'correct' : 'incorrect'}">${r.is_correct ? 'Correct' : 'Incorrect'}</span></div>
+      `;
+    }
+
+    function updateNavigation() {
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const counter = document.getElementById('counter');
+      
+      prevBtn.disabled = currentIndex === 0;
+      nextBtn.disabled = currentIndex === results.length - 1;
+      counter.textContent = `${currentIndex + 1}/${results.length}`;
+    }
+
+    document.getElementById('loadBtn').addEventListener('click', () => {
+      const dataset = document.getElementById('dataset').value;
+      const model = document.getElementById('model').value;
+      const path = `outputs/${model}/${dataset}-results.jsonl`;
+      console.log(path);
+      if (path) loadJSONL(path);
+    });
+
+    document.getElementById('prevBtn').addEventListener('click', () => {
+      if (currentIndex > 0) {
+        currentIndex--;
+        updateNavigation();
+        showResult();
+      }
+    });
+
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      if (currentIndex < results.length - 1) {
+        currentIndex++;
+        updateNavigation();
+        showResult();
+      }
+    });
+  </script>
+</body>
+</html> 
